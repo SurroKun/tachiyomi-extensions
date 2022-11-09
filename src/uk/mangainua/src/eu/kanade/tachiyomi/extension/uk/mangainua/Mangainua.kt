@@ -1,11 +1,13 @@
 package eu.kanade.tachiyomi.extension.uk.mangainua
 
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
+import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -28,23 +30,23 @@ class Mangainua : ParsedHttpSource() {
     override fun headersBuilder(): Headers.Builder = Headers.Builder()
         .add("Referer", baseUrl)
 
-    // Popular
+    // Popular (but, in fact is latest. Source cant give more, than 16 popular)
     override fun popularMangaRequest(page: Int): Request {
-        return GET(baseUrl)
+        return GET("$baseUrl/page/$page/")
     }
-    override fun popularMangaSelector() = "div.owl-carousel div.card--big"
+    override fun popularMangaSelector() = "main.main article.item"
     override fun popularMangaFromElement(element: Element): SManga {
         return SManga.create().apply {
             element.select("h3.card__title a").first().let {
                 setUrlWithoutDomain(it.attr("href"))
                 title = it.text()
             }
-            thumbnail_url = element.select("img").attr("abs:src")
+            thumbnail_url = element.select("div.card--big img").attr("abs:data-src")
         }
     }
-    override fun popularMangaNextPageSelector() = "not used"
+    override fun popularMangaNextPageSelector() = "a:contains(Наступна)"
 
-    // Latest
+    // Latest (using like help in search)
     override fun latestUpdatesRequest(page: Int): Request {
         return GET("$baseUrl/page/$page/")
     }
@@ -55,15 +57,38 @@ class Mangainua : ParsedHttpSource() {
                 setUrlWithoutDomain(it.attr("href"))
                 title = it.text()
             }
-            thumbnail_url = element.select("img").attr("abs:data-src")
+            thumbnail_url = element.select("img").attr("abs:src")
         }
     }
     override fun latestUpdatesNextPageSelector() = "a:contains(Наступна)"
 
     // Search
-    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request = throw UnsupportedOperationException("Not supported / Не підтримується")
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        if (query.isNotEmpty()) {
+            return POST(
+                "$baseUrl/index.php?do=search",
+                body = FormBody.Builder()
+                    .add("do", "search")
+                    .add("subaction", "search")
+                    .add("story", query)
+                    .add("search_start", page.toString())
+                    .build(),
+                headers = headers
+            )
+        }
+
+        val pageParameter = if (page > 1) "page/$page/" else ""
+        return POST(
+            "$baseUrl/ComicList/$pageParameter",
+            body = FormBody.Builder()
+                .build(),
+            headers = headers
+
+        )
+    }
+
     override fun searchMangaSelector() = popularMangaSelector()
-    override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
+    override fun searchMangaFromElement(element: Element): SManga = latestUpdatesFromElement(element)
     override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
 
     // Manga Details
