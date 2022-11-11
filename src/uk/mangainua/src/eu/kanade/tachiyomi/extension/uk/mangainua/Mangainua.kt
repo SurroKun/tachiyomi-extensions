@@ -30,23 +30,23 @@ class Mangainua : ParsedHttpSource() {
     override fun headersBuilder(): Headers.Builder = Headers.Builder()
         .add("Referer", baseUrl)
 
-    // Popular (but, in fact is latest. Source cant give more, than 16 popular)
+    // Popular
     override fun popularMangaRequest(page: Int): Request {
-        return GET("$baseUrl/page/$page/")
+        return GET(baseUrl)
     }
-    override fun popularMangaSelector() = "main.main article.item"
+    override fun popularMangaSelector() = "div.owl-carousel div.card--big"
     override fun popularMangaFromElement(element: Element): SManga {
         return SManga.create().apply {
             element.select("h3.card__title a").first().let {
                 setUrlWithoutDomain(it.attr("href"))
                 title = it.text()
             }
-            thumbnail_url = element.select("div.card--big img").attr("abs:data-src")
+            thumbnail_url = element.select("img").attr("abs:src")
         }
     }
-    override fun popularMangaNextPageSelector() = "a:contains(Наступна)"
+    override fun popularMangaNextPageSelector() = "not used"
 
-    // Latest (using like help in search)
+    // Latest (using for search)
     override fun latestUpdatesRequest(page: Int): Request {
         return GET("$baseUrl/page/$page/")
     }
@@ -57,7 +57,7 @@ class Mangainua : ParsedHttpSource() {
                 setUrlWithoutDomain(it.attr("href"))
                 title = it.text()
             }
-            thumbnail_url = element.select("img").attr("abs:src")
+            thumbnail_url = element.select("div.card--big img").attr("abs:data-src")
         }
     }
     override fun latestUpdatesNextPageSelector() = "a:contains(Наступна)"
@@ -76,20 +76,20 @@ class Mangainua : ParsedHttpSource() {
                 headers = headers
             )
         }
-
-        val pageParameter = if (page > 1) "page/$page/" else ""
-        return POST(
-            "$baseUrl/ComicList/$pageParameter",
-            body = FormBody.Builder()
-                .build(),
-            headers = headers
-
-        )
+        return throw UnsupportedOperationException("Not supported / Не підтримується")
     }
 
-    override fun searchMangaSelector() = popularMangaSelector()
-    override fun searchMangaFromElement(element: Element): SManga = latestUpdatesFromElement(element)
-    override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
+    override fun searchMangaSelector() = latestUpdatesSelector()
+    override fun searchMangaFromElement(element: Element): SManga {
+        return SManga.create().apply {
+            element.select("h3.card__title a").first().let {
+                setUrlWithoutDomain(it.attr("href"))
+                title = it.text()
+            }
+            thumbnail_url = element.select("div.card--big img").attr("abs:src")
+        }
+    }
+    override fun searchMangaNextPageSelector() = latestUpdatesNextPageSelector()
 
     // Manga Details
     override fun mangaDetailsParse(document: Document): SManga {
@@ -122,6 +122,7 @@ class Mangainua : ParsedHttpSource() {
             Page(i, "", element.attr("abs:data-src"))
         }
     }
+
 
     override fun imageUrlParse(document: Document): String = throw UnsupportedOperationException("Not used")
 
