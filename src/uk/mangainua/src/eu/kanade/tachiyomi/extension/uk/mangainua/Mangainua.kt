@@ -64,7 +64,7 @@ class Mangainua : ParsedHttpSource() {
 
     // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        if (query.isNotEmpty()) {
+        if (query.length > 3) {
             return POST(
                 "$baseUrl/index.php?do=search",
                 body = FormBody.Builder()
@@ -75,8 +75,7 @@ class Mangainua : ParsedHttpSource() {
                     .build(),
                 headers = headers
             )
-        }
-        return throw UnsupportedOperationException("Not supported / Не підтримується")
+        } else return throw UnsupportedOperationException("Запит має містити більше 3 символів / The request must contain more than 3 characters")
     }
 
     override fun searchMangaSelector() = latestUpdatesSelector()
@@ -122,7 +121,6 @@ class Mangainua : ParsedHttpSource() {
             Page(i, "", element.attr("abs:data-src"))
         }
     }
-
 
     override fun imageUrlParse(document: Document): String = throw UnsupportedOperationException("Not used")
 
